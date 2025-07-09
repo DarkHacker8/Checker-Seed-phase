@@ -4,17 +4,17 @@ import json
 from aiohttp_socks import ProxyConnector
 from bip_utils import Bip39SeedGenerator, Bip44, Bip44Coins, Bip44Changes
 
-# ===== КОНФИГУРАЦИЯ =====
-SEED_FILE = "seeds.txt"          # Файл с seed-фразами (1 фраза/строка)
-PROXY_FILE = "proxies.txt"       # Прокси в формате ip:port:login:password
-RESULT_FILE = "result.txt"       # Файл для результатов
-ERROR_LOG = "errors.log"          # Лог ошибок
-ADDRESSES_PER_SEED = 20           # Количество адресов для проверки на seed
-MAX_CONCURRENT_REQUESTS = 10      # Максимум одновременных запросов
+# ===== CONFIGURATION =====
+SEED_FILE = "seeds.txt"          # File with seed phrases (1 phrase/line)
+PROXY_FILE = "proxies.txt"       # Proxy in the ip:port:login:password format
+RESULT_FILE = "result.txt"       # The file for the results
+ERROR_LOG = "errors.log"          # Error log
+ADDRESSES_PER_SEED = 20           # Number of addresses to check for seed
+MAX_CONCURRENT_REQUESTS = 10      # Maximum simultaneous requests
 # ========================
 
 async def process_seed(seed: str) -> list:
-    """Генерирует адреса Ethereum из seed-фразы"""
+    """Generates Ethereum addresses from a seed phrase"""
     addresses = []
     seed_bytes = Bip39SeedGenerator(seed).Generate()
     
@@ -33,7 +33,7 @@ async def process_seed(seed: str) -> list:
     return addresses
 
 async def fetch_balance(session: aiohttp.ClientSession, address: str, proxy: str) -> dict:
-    """Проверяет баланс через Blockscan API"""
+    """Checks the balance via the Blockscan API"""
     url = f"https://api.blockscan.com/api?module=account&action=balancemulti&address={address}&tag=latest&apikey=freekey"
     
     try:
@@ -44,7 +44,7 @@ async def fetch_balance(session: aiohttp.ClientSession, address: str, proxy: str
         return {"error": str(e)}
 
 async def worker(session: aiohttp.ClientSession, queue: asyncio.Queue, proxy: str):
-    """Обрабатывает задачи из очереди"""
+    """Processes tasks from the queue"""
     while not queue.empty():
         try:
             wallet = await queue.get()
@@ -62,15 +62,15 @@ async def worker(session: aiohttp.ClientSession, queue: asyncio.Queue, proxy: st
             queue.task_done()
 
 async def main():
-    # Инициализация файлов
+    # Initializing files
     open(RESULT_FILE, "w").close()
     open(ERROR_LOG, "w").close()
     
-    # Загрузка прокси
+    # Downloading the proxy
     with open(PROXY_FILE) as f:
         proxies = [f"http://{line.strip()}" for line in f if line.strip()]
     
-    # Генерация адресов
+    # Address generation
     tasks = []
     with open(SEED_FILE) as f:
         for seed in f:
@@ -81,12 +81,12 @@ async def main():
     for future in asyncio.as_completed(tasks):
         wallets.extend(await future)
     
-    # Создание очереди задач
+    # Creating a task queue
     queue = asyncio.Queue()
     for wallet in wallets:
         await queue.put(wallet)
     
-    # Запуск воркеров
+    # Launching workshops
     async with aiohttp.ClientSession(
         connector=ProxyConnector.from_url(proxies[0]), 
         headers={"User-Agent": "Mozilla/5.0"}
